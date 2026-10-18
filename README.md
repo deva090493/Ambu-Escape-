@@ -11,7 +11,7 @@ Arrow puzzle game. Users விளையாடி points சேர்ப்ப�
 | `netlify/functions/` | Server: register, claim-level, redeem, admob-ssv |
 | `firestore.rules` | Firebase பாதுகாப்பு rules |
 | `.github/workflows/build-android.yml` | GitHub-ல APK + AAB build |
-| `android/app/release.keystore` + `keystore.properties` | App signing key. **இதை மாத்தவோ delete பண்ணவோ கூடாது** |
+| Signing key | Repo-ல இல்ல. GitHub **Secrets**-ல (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`). Backup: `ambu-release.keystore` + `github-secrets.txt` |
 
 எல்லாமே free plan-லயே ஓடும்: Firebase Spark, Netlify free, GitHub Actions.
 
@@ -19,9 +19,10 @@ Arrow puzzle game. Users விளையாடி points சேர்ப்ப�
 
 ## 1. GitHub
 
-1. GitHub-ல **Private** repo உருவாக்குங்க (உதா: `ambu-escape`). Private கட்டாயம், ஏன்னா signing key இதுக்குள்ள இருக்கு.
-2. இந்த zip-ல உள்ள எல்லா files-ஐயும் அதே folder அமைப்போட upload பண்ணுங்க (`.github` folder உட்பட).
-3. `release.keystore`, `keystore.properties` இரண்டையும் Google Drive-லயும் backup வெச்சுக்கோங்க. இது போனா, Play Store-ல app update பண்ண முடியாது.
+1. Repo: `github.com/deva090493/Ambu-Escape-` (code ஏற்கனவே push ஆகியிருக்கு).
+2. Repo → **Settings → Secrets and variables → Actions → New repository secret** → `github-secrets.txt`-ல உள்ள இரண்டு secrets-ஐயும் (பெயர் + value) சேருங்க. இது இல்லன்னா build debug key-ல sign ஆகும், Play Store ஏற்காது.
+3. `ambu-release.keystore`, `github-secrets.txt` இரண்டையும் Google Drive-ல backup வெச்சுக்கோங்க. இது போனா Play Store-ல app update பண்ண கஷ்டம்.
+4. ஒவ்வொரு build-க்கும் பிறகு APK, AAB இரண்டும் **build-output** branch-லயும் வரும் (phone-ல இருந்து download பண்ண எளிது).
 
 ## 2. Firebase (புது project)
 
