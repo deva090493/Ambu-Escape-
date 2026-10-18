@@ -1,0 +1,9 @@
+{
+  "name": "ambu-escape-server",
+  "private": true,
+  "description": "Netlify functions for Ambu Escape (points, redeem, AdMob verification)",
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "firebase-admin": "12.7.0"
+  }
+}

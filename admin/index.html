@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="ta">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ambu Escape Admin</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+Thambi+2:wght@600;800&family=Hind+Madurai:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+[hidden]{display:none!important}
+/* Layout: control room — left rail of sections on desktop, top tabs on phone; dense cards */
+:root{
+  --bg:#EEF0F7; --surface:#FFFFFF; --ink:#151A44; --muted:#646A8C; --line:#DFE2EE;
+  --accent:#E07A10; --accent-soft:#FCEBD6; --good:#1E9466; --good-soft:#DDF3EA; --bad:#D63A3C; --bad-soft:#FBE2E2;
+  --display:"Baloo Thambi 2","Hind Madurai",system-ui,sans-serif; --body:"Hind Madurai",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0E1027; --surface:#181B37; --ink:#E7E8F7; --muted:#9A9EC4; --line:#2A2E55;
+  --accent:#F4A340; --accent-soft:#3A2B17; --good:#3CC48C; --good-soft:#123528; --bad:#FF6466; --bad-soft:#3d1a1d; color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--display);margin:0;line-height:1.15;text-wrap:balance}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1100px;margin:0 auto;padding-block:16px 40px;display:grid;grid-template-columns:200px 1fr;gap:20px}
+@media (max-width:760px){.wrap{grid-template-columns:1fr}}
+.rail{display:flex;flex-direction:column;gap:4px;position:sticky;top:16px;align-self:start}
+@media (max-width:760px){.rail{flex-direction:row;overflow-x:auto;position:static}}
+.brand{font-family:var(--display);font-weight:800;font-size:22px;padding:4px 10px 12px}
+.brand span{color:var(--accent)}
+.rail button{border:0;background:none;text-align:left;padding:9px 12px;border-radius:10px;font-weight:600;color:var(--muted);white-space:nowrap;display:flex;justify-content:space-between;gap:8px}
+.rail button[aria-selected="true"]{background:var(--surface);color:var(--ink)}
+.count{background:var(--accent);color:#1b1206;border-radius:999px;padding:0 8px;font-size:12px;font-weight:700}
+main{min-width:0;display:flex;flex-direction:column;gap:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.muted{color:var(--muted)} .small{font-size:13px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.tile .k{font-size:12px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.tile .v{font-family:var(--display);font-weight:800;font-size:26px;font-variant-numeric:tabular-nums}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:7px 14px;font-weight:600}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#1b1206}
+.btn.good{background:var(--good);border-color:var(--good);color:#fff}
+.btn.bad{color:var(--bad);border-color:var(--bad)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+input,select{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;width:100%;min-width:0}
+.form{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
+.form label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+.list{display:flex;flex-direction:column}
+.item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 14px;padding:12px 0;border-top:1px solid var(--line);align-items:center}
+.item:first-child{border-top:0}
+.item .who{font-weight:600}
+.mono{font-family:var(--mono);font-size:13px;word-break:break-all}
+.pill{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 8px;border-radius:999px;display:inline-block}
+.pill.pending{background:var(--accent-soft)} .pill.paid{background:var(--good-soft);color:var(--good)} .pill.rejected{background:var(--bad-soft);color:var(--bad)}
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+.filters button{border:1px solid var(--line);background:none;border-radius:999px;padding:4px 12px;font-size:13px}
+.filters button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.out{display:grid;grid-template-columns:1fr auto;gap:6px 12px;font-variant-numeric:tabular-nums}
+.out .v{font-weight:600;text-align:right}
+.pos{color:var(--good)} .neg{color:var(--bad)}
+.rw{display:grid;grid-template-columns:90px minmax(0,1fr) 100px minmax(0,1fr) auto;gap:8px;align-items:center}
+@media (max-width:640px){.rw{grid-template-columns:1fr 1fr}}
+#login{max-width:380px;margin:12vh auto;display:flex;flex-direction:column;gap:12px}
+.err{color:var(--bad);font-size:13px;min-height:1.2em}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;z-index:30}
+#ovl{position:fixed;inset:0;background:rgba(10,12,30,.5);display:grid;place-items:center;padding:16px;z-index:20}
+#ovl .card{width:min(420px,100%)}
+</style>
+</head>
+<body>
+
+<section id="login" class="card" hidden>
+  <div class="brand" style="padding:0">அம்பு <span>Escape</span> · Admin</div>
+  <label class="small muted">Email<input id="lEmail" type="email" autocomplete="email"></label>
+  <label class="small muted">Password<input id="lPass" type="password" autocomplete="current-password"></label>
+  <div class="err" id="lErr"></div>
+  <button class="btn primary" id="lGo">Login</button>
+</section>
+
+<div class="wrap" id="app" hidden>
+  <nav class="rail" role="tablist">
+    <div class="brand">அம்பு <span>Escape</span></div>
+    <button role="tab" data-t="dash" aria-selected="true">Dashboard</button>
+    <button role="tab" data-t="redeem" aria-selected="false">Redeems <span class="count" id="pendCount" hidden>0</span></button>
+    <button role="tab" data-t="users" aria-selected="false">Users</button>
+    <button role="tab" data-t="settings" aria-selected="false">Settings</button>
+    <button id="logout" style="margin-top:12px">Logout</button>
+  </nav>
+
+  <main>
+    <!-- DASHBOARD -->
+    <section id="t-dash" style="display:flex;flex-direction:column;gap:16px">
+      <h2>Dashboard</h2>
+      <div class="tiles" id="tiles"></div>
+      <div class="card">
+        <h3>வருமானம் (கணிப்பு)</h3>
+        <span class="small muted">உண்மையான ad வருமானம் AdMob console-ல தான் தெரியும். இது உங்க eCPM வைச்சு போடுற கணிப்பு.</span>
+        <div class="form">
+          <label>Interstitial eCPM ₹<input id="eI" type="number" value="60"></label>
+          <label>Rewarded eCPM ₹<input id="eR" type="number" value="150"></label>
+          <label>Banner eCPM ₹<input id="eB" type="number" value="10"></label>
+        </div>
+        <div class="out" id="money"></div>
+        <a href="https://admob.google.com/" target="_blank" rel="noopener" class="small">AdMob console திற →</a>
+      </div>
+    </section>
+
+    <!-- REDEEMS -->
+    <section id="t-redeem" hidden style="display:flex;flex-direction:column;gap:16px">
+      <h2>Redeem requests</h2>
+      <div class="filters" id="rFilter">
+        <button data-f="pending" class="on">Pending</button><button data-f="paid">Paid</button><button data-f="rejected">Rejected</button>
+      </div>
+      <div class="card"><div class="list" id="rList"></div></div>
+      <p class="small muted">Approve செய்ய: முதல்ல GPay/PhonePe-ல அந்த UPI ID-க்கு பணம் அனுப்புங்க, பிறகு "Paid" அழுத்துங்க. Reject செய்தா points user-க்கு திரும்ப போகும்.</p>
+    </section>
+
+    <!-- USERS -->
+    <section id="t-users" hidden style="display:flex;flex-direction:column;gap:16px">
+      <h2>Users</h2>
+      <div class="row"><input id="uSearch" type="email" placeholder="Email வைத்து தேடு" style="max-width:320px"><button class="btn" id="uGo">தேடு</button><button class="btn" id="uTop">அதிக points</button><button class="btn" id="uNew">புதியவர்கள்</button></div>
+      <div class="card"><div class="list" id="uList"></div></div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="t-settings" hidden style="display:flex;flex-direction:column;gap:16px">
+      <h2>Settings</h2>
+      <div class="card">
+        <h3>Points</h3>
+        <div class="form" id="sForm"></div>
+      </div>
+      <div class="card">
+        <h3>Rewards</h3>
+        <span class="small muted">ID மாற்றாதீங்க (pending requests அதை வைத்துதான் வேலை செய்யும்). Field = user கிட்ட கேட்கும் விவரம்.</span>
+        <div id="rwList" style="display:flex;flex-direction:column;gap:8px"></div>
+        <div class="row"><button class="btn" id="rwAdd">+ Reward சேர்</button></div>
+      </div>
+      <div class="row"><button class="btn primary" id="sSave">Save settings</button><span class="small muted" id="sMsg"></span></div>
+    </section>
+  </main>
+</div>
+
+<div id="ovl" hidden><div class="card" id="ovlBox"></div></div>
+
+<script>
+/* ======== CONFIG — same Firebase values as the game (README step 3) ======== */
+const FIREBASE = {
+  apiKey: "PASTE_API_KEY",
+  authDomain: "PASTE_PROJECT_ID.firebaseapp.com",
+  projectId: "PASTE_PROJECT_ID",
+  appId: "PASTE_APP_ID"
+};
+/* ========================================================================== */
+firebase.initializeApp(FIREBASE);
+const auth=firebase.auth(), db=firebase.firestore(), FV=firebase.firestore.FieldValue;
+const $=id=>document.getElementById(id);
+const fmt=n=>Math.round(n||0).toLocaleString('en-IN');
+const inr=n=>'₹'+fmt(n);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const dt=t=>t&&t.seconds?new Date(t.seconds*1000).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'}):'';
+function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.append(t);setTimeout(()=>t.remove(),2600)}
+function store(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}}
+
+const DEF={pointsPerLevel:4,heartBonus:1,pointsPerAd:3,ratePer1000:5,dailyLevelCap:60,dailyAdCap:15,minSecondsPerLevel:8,interstitialEvery:2,
+  rewards:[{id:'upi5',title:'UPI cash ₹5',cost:1000,field:'UPI ID'},{id:'rc10',title:'Mobile recharge ₹10',cost:2000,field:'Mobile number'},{id:'v25',title:'Shopping voucher ₹25',cost:5000,field:'Email'}]};
+let SET={...DEF}, STATS={}, unsubs=[];
+
+/* ---------- login ---------- */
+$('lGo').onclick=async()=>{$('lErr').textContent='';try{await auth.signInWithEmailAndPassword($('lEmail').value.trim(),$('lPass').value)}catch(e){$('lErr').textContent='Login ஆகல: '+(e.code||e.message)}};
+$('logout').onclick=()=>auth.signOut();
+auth.onAuthStateChanged(async u=>{
+  unsubs.forEach(f=>f());unsubs=[];
+  if(!u){$('login').hidden=false;$('app').hidden=true;return}
+  const a=await db.doc('admins/'+u.uid).get().catch(()=>null);
+  if(!a||!a.exists){$('lErr').textContent='இந்த account admin இல்ல. UID: '+u.uid;await auth.signOut();return}
+  $('login').hidden=true;$('app').hidden=false;
+  unsubs.push(db.doc('settings/app').onSnapshot(s=>{SET={...DEF,...(s.exists?s.data():{})};renderSettings();renderDash()}));
+  unsubs.push(db.doc('stats/global').onSnapshot(s=>{STATS=s.exists?s.data():{};renderDash()}));
+  unsubs.push(db.collection('redeems').where('status','==','pending').onSnapshot(q=>{const n=q.size;$('pendCount').hidden=!n;$('pendCount').textContent=n;if(rFilter==='pending')renderRedeems(q.docs)}));
+  loadUsers('new');
+});
+
+/* ---------- tabs ---------- */
+document.querySelectorAll('.rail button[data-t]').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.rail button[data-t]').forEach(x=>x.setAttribute('aria-selected',x===b));
+  ['dash','redeem','users','settings'].forEach(t=>$('t-'+t).hidden=t!==b.dataset.t);
+});
+
+/* ---------- dashboard ---------- */
+['eI','eR','eB'].forEach(id=>{const v=store('adm-'+id);if(v)$(id).value=v;$(id).oninput=()=>{store('adm-'+id,$(id).value);renderDash()}});
+function renderDash(){
+  const s=STATS,rate=SET.ratePer1000;
+  const tiles=[['Users',fmt(s.users)],['Levels விளையாடியது',fmt(s.levels)],['Rewarded ads',fmt(s.rewardedAds)],['Points கொடுத்தது',fmt(s.pointsIssued)],['Points பணமாக்கியது',fmt(s.pointsPaid)],['Redeem requests',fmt(s.redeemRequests)]];
+  $('tiles').innerHTML=tiles.map(([k,v])=>`<div class="tile"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+  const levels=s.levels||0,eI=+$('eI').value||0,eR=+$('eR').value||0,eB=+$('eB').value||0;
+  const rev=levels/(SET.interstitialEvery||2)/1000*eI+(s.rewardedAds||0)/1000*eR+levels/1000*eB;
+  const paid=(s.pointsPaid||0)/1000*rate;
+  const owed=Math.max(0,(s.pointsIssued||0)-(s.pointsPaid||0)-(s.pointsRefunded||0))/1000*rate;
+  const profit=rev-paid-owed;
+  $('money').innerHTML=`<span>மொத்த ad வருமானம் (கணிப்பு)</span><span class="v">${inr(rev)}</span>
+    <span>Users-க்கு அனுப்பியது</span><span class="v">${inr(paid)}</span>
+    <span>இன்னும் கொடுக்க வேண்டியது (users கையில் உள்ள points)</span><span class="v">${inr(owed)}</span>
+    <span style="font-weight:700">உங்க லாபம் (கணிப்பு)</span><span class="v ${profit>=0?'pos':'neg'}" style="font-size:18px">${inr(profit)}</span>
+    <span>Payout விகிதம்</span><span class="v">${rev?Math.round((paid+owed)/rev*100):0}%</span>`;
+}
+
+/* ---------- redeems ---------- */
+let rFilter='pending';
+document.querySelectorAll('#rFilter button').forEach(b=>b.onclick=async()=>{
+  document.querySelectorAll('#rFilter button').forEach(x=>x.classList.toggle('on',x===b));rFilter=b.dataset.f;
+  $('rList').innerHTML='<span class="muted">Loading…</span>';
+  const q=await db.collection('redeems').where('status','==',rFilter).limit(50).get();renderRedeems(q.docs);
+});
+function renderRedeems(docs){
+  const rows=docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>rFilter==='pending'?(a.createdAt?.seconds||0)-(b.createdAt?.seconds||0):(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+  if(!rows.length){$('rList').innerHTML='<span class="muted">எதுவும் இல்ல.</span>';return}
+  $('rList').innerHTML=rows.map(r=>`<div class="item">
+    <div><div class="who">${esc(r.name)} · ${esc(r.title)}</div>
+      <div class="small muted">${esc(r.email)} · ${fmt(r.cost)} pts · ${dt(r.createdAt)}</div>
+      <div class="mono">${esc(r.target)}</div>${r.note?`<div class="small muted">Note: ${esc(r.note)}</div>`:''}</div>
+    <div class="row">${r.status==='pending'?`<button class="btn" data-copy="${esc(r.target)}">Copy</button><button class="btn good" data-pay="${r.id}">Paid</button><button class="btn bad" data-rej="${r.id}">Reject</button>`:`<span class="pill ${r.status}">${r.status}</span>`}</div></div>`).join('');
+  $('rList').querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>navigator.clipboard.writeText(b.dataset.copy).then(()=>toast('Copied')).catch(()=>toast('Copy ஆகல')));
+  $('rList').querySelectorAll('[data-pay]').forEach(b=>b.onclick=()=>ask('Paid என்று mark செய்யவா?','பணம் அனுப்பிட்டீங்களா? Transaction ID / note (விருப்பம்)',n=>settle(b.dataset.pay,'paid',n)));
+  $('rList').querySelectorAll('[data-rej]').forEach(b=>b.onclick=()=>ask('Reject செய்யவா?','காரணம் (user-க்கு தெரியும்)',n=>settle(b.dataset.rej,'rejected',n)));
+}
+function ask(title,label,cb){
+  $('ovlBox').innerHTML=`<h3>${title}</h3><label class="small muted">${label}<input id="askIn"></label><div class="row"><button class="btn" id="askNo">Cancel</button><button class="btn primary" id="askYes">Confirm</button></div>`;
+  $('ovl').hidden=false;$('askNo').onclick=()=>$('ovl').hidden=true;
+  $('askYes').onclick=()=>{const v=$('askIn').value.trim();$('ovl').hidden=true;cb(v)};
+}
+async function settle(id,status,note){
+  const ref=db.doc('redeems/'+id);
+  try{
+    await db.runTransaction(async tx=>{
+      const s=await tx.get(ref);if(!s.exists||s.data().status!=='pending')throw new Error('ஏற்கனவே முடிஞ்சது');
+      const r=s.data();
+      tx.update(ref,{status,note:note||'',settledAt:FV.serverTimestamp()});
+      if(status==='rejected'){
+        tx.update(db.doc('users/'+r.uid),{points:FV.increment(r.cost)});
+        tx.set(db.doc('stats/global'),{pointsRefunded:FV.increment(r.cost)},{merge:true});
+      }else tx.set(db.doc('stats/global'),{pointsPaid:FV.increment(r.cost)},{merge:true});
+    });
+    toast(status==='paid'?'Paid ✓':'Rejected, points திரும்ப போச்சு');
+  }catch(e){toast(e.message)}
+}
+
+/* ---------- users ---------- */
+async function loadUsers(mode){
+  $('uList').innerHTML='<span class="muted">Loading…</span>';
+  let q;
+  if(mode==='search'){const e=$('uSearch').value.trim();if(!e){toast('Email type செய்யுங்க');return}q=db.collection('users').where('email','==',e).limit(5)}
+  else q=db.collection('users').orderBy(mode==='top'?'points':'createdAt','desc').limit(30);
+  try{const r=await q.get();renderUsers(r.docs)}catch(e){$('uList').innerHTML='<span class="muted">'+esc(e.message)+'</span>'}
+}
+$('uGo').onclick=()=>loadUsers('search');$('uTop').onclick=()=>loadUsers('top');$('uNew').onclick=()=>loadUsers('new');
+function renderUsers(docs){
+  if(!docs.length){$('uList').innerHTML='<span class="muted">யாரும் இல்ல.</span>';return}
+  $('uList').innerHTML=docs.map(d=>{const u=d.data();return`<div class="item">
+    <div><div class="who">${esc(u.name)} ${u.blocked?'<span class="pill rejected">blocked</span>':''}</div>
+    <div class="small muted">${esc(u.email)} · Level ${u.level} · ${fmt(u.points)} pts (மொத்தம் ${fmt(u.totalEarned)}) · ${dt(u.createdAt)}</div>
+    <div class="small muted">இன்று: ${u.day?.levels||0} levels, ${u.day?.ads||0} ads (${esc(u.day?.date||'-')})</div></div>
+    <div class="row"><button class="btn ${u.blocked?'':'bad'}" data-blk="${d.id}" data-v="${u.blocked?0:1}">${u.blocked?'Unblock':'Block'}</button></div></div>`}).join('');
+  $('uList').querySelectorAll('[data-blk]').forEach(b=>b.onclick=async()=>{
+    try{await db.doc('users/'+b.dataset.blk).update({blocked:b.dataset.v==='1'});toast('Saved');loadUsers('new')}catch(e){toast(e.message)}});
+}
+
+/* ---------- settings ---------- */
+const FIELDS=[['pointsPerLevel','Level-க்கு points'],['heartBonus','ஒவ்வொரு ❤-க்கும் bonus'],['pointsPerAd','Rewarded ad-க்கு points'],['ratePer1000','1000 pts = ₹'],
+  ['dailyLevelCap','நாள் level limit'],['dailyAdCap','நாள் ad limit'],['minSecondsPerLevel','Level இடையே குறைந்த நொடி'],['interstitialEvery','Interstitial, ஒவ்வொரு N levels']];
+let editingRewards=null;
+function renderSettings(){
+  if(document.activeElement&&$('t-settings').contains(document.activeElement))return; // don't wipe while typing
+  $('sForm').innerHTML=FIELDS.map(([k,l])=>`<label>${l}<input id="s_${k}" type="number" min="0" step="any" value="${SET[k]}"></label>`).join('');
+  editingRewards=(SET.rewards||[]).map(r=>({...r}));renderRewardRows();
+}
+function renderRewardRows(){
+  $('rwList').innerHTML=editingRewards.map((r,i)=>`<div class="rw">
+    <input data-i="${i}" data-k="id" value="${esc(r.id)}" placeholder="id" aria-label="Reward id">
+    <input data-i="${i}" data-k="title" value="${esc(r.title)}" placeholder="பெயர்" aria-label="Reward title">
+    <input data-i="${i}" data-k="cost" type="number" value="${r.cost}" placeholder="pts" aria-label="Points cost">
+    <input data-i="${i}" data-k="field" value="${esc(r.field)}" placeholder="கேட்கும் விவரம்" aria-label="Field to ask">
+    <button class="btn bad" data-del="${i}" aria-label="Remove">✕</button></div>`).join('');
+  $('rwList').querySelectorAll('input').forEach(inp=>inp.oninput=()=>{const r=editingRewards[inp.dataset.i];r[inp.dataset.k]=inp.dataset.k==='cost'?+inp.value:inp.value});
+  $('rwList').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{editingRewards.splice(+b.dataset.del,1);renderRewardRows()});
+}
+$('rwAdd').onclick=()=>{editingRewards.push({id:'r'+Date.now().toString(36),title:'',cost:1000,field:'UPI ID'});renderRewardRows()};
+$('sSave').onclick=async()=>{
+  const data={};for(const[k]of FIELDS){const v=parseFloat($('s_'+k).value);if(!(v>=0)){$('sMsg').textContent=k+' சரியில்ல';return}data[k]=v}
+  const rw=editingRewards.filter(r=>r.id&&r.title&&r.cost>0).map(r=>({id:String(r.id).replace(/[^a-zA-Z0-9_-]/g,''),title:r.title,cost:Math.round(r.cost),field:r.field||'விவரம்'}));
+  if(new Set(rw.map(r=>r.id)).size!==rw.length){$('sMsg').textContent='Reward ID ஒன்றுக்கு மேல் ஒரே மாதிரி இருக்கு';return}
+  data.rewards=rw;
+  try{await db.doc('settings/app').set(data,{merge:true});$('sMsg').textContent='Saved ✓ (users-க்கு உடனே apply ஆகும்)'}catch(e){$('sMsg').textContent=e.message}
+};
+</script>
+</body>
+</html>

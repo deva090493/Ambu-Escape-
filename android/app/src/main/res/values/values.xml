@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">அம்பு Escape</string>
+    <color name="bg">#F2F3F9</color>
+    <color name="ink">#151A44</color>
+    <color name="accent">#E07A10</color>
+    <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:windowBackground">@color/bg</item>
+        <item name="colorPrimary">@color/ink</item>
+        <item name="colorAccent">@color/accent</item>
+    </style>
+</resources>

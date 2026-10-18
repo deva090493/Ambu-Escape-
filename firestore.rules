@@ -1,0 +1,32 @@
+rules_version = '2';
+// Players can only READ their own data. Points, levels and redeems are written only by
+// the Netlify functions (Admin SDK skips these rules) or by an admin.
+// Admin = a user whose UID has a doc in the "admins" collection (create it by hand in Firebase console).
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isAdmin() {
+      return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow update: if isAdmin();
+    }
+    match /redeems/{id} {
+      allow read: if signedIn() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow update: if isAdmin();
+    }
+    match /settings/{doc} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+    match /stats/{doc} {
+      allow read, write: if isAdmin();
+    }
+    match /admins/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+    }
+    // devices, adtx and anything else: server only.
+  }
+}

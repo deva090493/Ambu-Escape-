@@ -1,0 +1,16 @@
+node_modules/
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+*.iml
+.idea/
+.DS_Store
+# Never commit the Firebase service account key
+*firebase-adminsdk*.json
+service-account*.json
+
+# Signing key lives in GitHub Secrets, never in the repo
+*.keystore
+*.jks
+keystore.properties

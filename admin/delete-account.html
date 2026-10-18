@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ta">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Delete Ambu Escape Account</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+Thambi+2:wght@700&family=Hind+Madurai:wght@400;600&display=swap">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<style>
+[hidden]{display:none!important}
+:root{--bg:#F2F3F9;--surface:#fff;--ink:#151A44;--muted:#646A8C;--line:#E2E4F0;--accent:#E07A10;--bad:#D63A3C}
+@media (prefers-color-scheme: dark){:root{--bg:#0F1128;--surface:#1A1D3B;--ink:#E8E9F8;--muted:#9A9DC2;--line:#2B2F57;--accent:#F4A340;--bad:#FF6466;color-scheme:dark}}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "Hind Madurai",system-ui,sans-serif;padding:32px max(16px,env(safe-area-inset-right,0px)) 48px max(16px,env(safe-area-inset-left,0px))}
+main{max-width:420px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+h1{font-family:"Baloo Thambi 2","Hind Madurai",sans-serif;font-size:26px;margin:0;line-height:1.2}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px}
+input{font:inherit;color:inherit;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;width:100%;box-sizing:border-box}
+button{font:inherit;border-radius:10px;padding:10px;font-weight:600;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.danger{border-color:var(--bad);color:var(--bad)}
+.muted{color:var(--muted);font-size:14px}.msg{font-size:14px;min-height:1.2em}
+a{color:var(--accent)}
+</style>
+</head>
+<body><main>
+<h1>அம்பு Escape account delete</h1>
+<p class="muted">Delete செய்தால் உங்க profile, points, level, login நிரந்தரமா அழியும். Pending redeem requests ரத்தாகும். விவரம்: <a href="privacy.html">Privacy policy</a>.<br>To delete your Ambu Escape account and its data, log in below and confirm.</p>
+<div class="card" id="loginBox">
+  <label class="muted">Email<input id="em" type="email" autocomplete="email"></label>
+  <label class="muted">Password<input id="pw" type="password" autocomplete="current-password"></label>
+  <button id="go">Login</button>
+  <div class="msg" id="m1"></div>
+</div>
+<div class="card" id="delBox" hidden>
+  <div id="who"></div>
+  <label class="muted">உறுதி செய்ய DELETE என்று type செய்யுங்க<input id="cf"></label>
+  <button class="danger" id="del">Account-ஐ நிரந்தரமா delete செய்</button>
+  <div class="msg" id="m2"></div>
+</div>
+<p class="muted">Password மறந்துவிட்டால் app-ல "Password மறந்துட்டீங்களா?" பயன்படுத்துங்க, அல்லது CONTACT_EMAIL-க்கு உங்க account email-லிருந்து எழுதுங்க.</p>
+</main>
+<script>
+const FIREBASE={apiKey:"PASTE_API_KEY",authDomain:"PASTE_PROJECT_ID.firebaseapp.com",projectId:"PASTE_PROJECT_ID",appId:"PASTE_APP_ID"};
+firebase.initializeApp(FIREBASE);const auth=firebase.auth();const $=id=>document.getElementById(id);
+$('go').onclick=async()=>{$('m1').textContent='';try{await auth.signInWithEmailAndPassword($('em').value.trim(),$('pw').value)}catch(e){$('m1').textContent='Login ஆகல. Email/password சரிபாருங்க.'}};
+auth.onAuthStateChanged(u=>{$('loginBox').hidden=!!u;$('delBox').hidden=!u;if(u)$('who').textContent='Login: '+u.email});
+$('del').onclick=async()=>{
+  if($('cf').value.trim().toUpperCase()!=='DELETE'){$('m2').textContent='DELETE என்று type செய்யுங்க';return}
+  $('del').disabled=true;$('m2').textContent='Delete ஆகிறது…';
+  try{const t=await auth.currentUser.getIdToken();const r=await fetch('/api/delete-account',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+t},body:'{}'});
+    const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'பிழை');
+    await auth.signOut().catch(()=>{});$('delBox').hidden=true;$('loginBox').hidden=true;
+    document.querySelector('main').insertAdjacentHTML('beforeend','<div class="card">✓ உங்க account delete ஆச்சு. Your account has been deleted.</div>');
+  }catch(e){$('m2').textContent=e.message;$('del').disabled=false}
+};
+</script>
+</body></html>

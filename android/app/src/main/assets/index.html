@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="ta">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Ambu Escape</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+Thambi+2:wght@500;700;800&family=Hind+Madurai:wght@400;500;600&display=swap">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+[hidden]{display:none!important}
+
+/* Layout: one-screen mobile game shell — sticky top bar, tab content, fixed bottom nav */
+:root{
+  --bg:#F2F3F9; --surface:#FFFFFF; --ink:#151A44; --muted:#676B8C; --line:#E2E4F0;
+  --accent:#E07A10; --accent-soft:#FCEBD6; --good:#1E9466; --bad:#D63A3C; --ad:#3D5AFE;
+  --display:"Baloo Thambi 2", "Hind Madurai", system-ui, sans-serif;
+  --body:"Hind Madurai", system-ui, -apple-system, sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F1128; --surface:#1A1D3B; --ink:#E8E9F8; --muted:#9A9DC2; --line:#2B2F57;
+  --accent:#F4A340; --accent-soft:#3A2B17; --good:#3CC48C; --bad:#FF6466; --ad:#8C9EFF; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1128; --surface:#1A1D3B; --ink:#E8E9F8; --muted:#9A9DC2; --line:#2B2F57;
+  --accent:#F4A340; --accent-soft:#3A2B17; --good:#3CC48C; --bad:#FF6466; --ad:#8C9EFF; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.app{max-width:560px;margin:0 auto;padding-block:12px 96px;display:flex;flex-direction:column;gap:14px}
+h1,h2,h3{font-family:var(--display);margin:0;line-height:1.15;text-wrap:balance}
+button{font:inherit;cursor:pointer;color:inherit}
+button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{font-family:var(--display);font-weight:800;font-size:24px;letter-spacing:-.01em}
+.brand span{color:var(--accent)}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--accent-soft);color:var(--ink);
+  border-radius:999px;padding:4px 12px;font-weight:600;font-variant-numeric:tabular-nums}
+.chip b{font-family:var(--display);font-size:17px}
+.hud{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}
+.hud .lvl{font-family:var(--display);font-weight:800;font-size:22px}
+.hud .left{justify-self:end;color:var(--muted);font-size:13px;text-align:right;font-variant-numeric:tabular-nums}
+.hearts{display:flex;gap:4px;font-size:24px;line-height:1}
+.heart{color:var(--bad);transition:transform .2s,opacity .2s}
+.heart.off{opacity:.18;transform:scale(.8)}
+.board-wrap{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:10px;aspect-ratio:1/1;max-width:100%;touch-action:manipulation}
+#board{width:100%;height:100%;display:block}
+.arrow polyline.body{fill:none;stroke:var(--ink);stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round}
+.arrow polygon{fill:var(--ink)}
+.arrow polyline.hit{fill:none;stroke:transparent;stroke-width:8;stroke-linecap:round;pointer-events:stroke;cursor:pointer}
+.arrow.bad polyline.body{stroke:var(--bad)} .arrow.bad polygon{fill:var(--bad)}
+.arrow.hint polyline.body{stroke:var(--accent)} .arrow.hint polygon{fill:var(--accent)}
+.tools{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:10px 16px;font-weight:600;display:inline-flex;align-items:center;gap:8px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#1b1206}
+.btn.ad{border-color:var(--ad);color:var(--ad)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.badge{background:var(--ad);color:#fff;border-radius:999px;font-size:12px;padding:0 7px;font-weight:700}
+.banner{border:1.5px dashed var(--ad);color:var(--ad);border-radius:12px;padding:10px;text-align:center;font-size:13px}
+.banner b{letter-spacing:.08em;font-size:11px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.muted{color:var(--muted)}
+.big{font-family:var(--display);font-weight:800;font-size:44px;line-height:1;font-variant-numeric:tabular-nums}
+.bar{height:12px;background:var(--line);border-radius:999px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:999px;transition:width .4s}
+.rewards{display:grid;gap:10px}
+.reward{display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center;border-top:1px solid var(--line);padding-top:10px}
+.reward:first-child{border-top:0;padding-top:0}
+.reward .t{font-weight:600}
+.reward .c{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+.reward .btn{grid-row:span 2}
+.hist{display:grid;gap:6px;font-size:13px}
+.hist div{display:flex;justify-content:space-between;gap:8px}
+.pill{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:var(--accent-soft)}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.form label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);min-width:0}
+.form input{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;width:100%;font-variant-numeric:tabular-nums}
+.out{display:grid;grid-template-columns:1fr auto;gap:6px 12px;font-variant-numeric:tabular-nums}
+.out .v{font-weight:600;text-align:right}
+.out .tot{font-family:var(--display);font-size:20px;font-weight:800}
+.pos{color:var(--good)} .neg{color:var(--bad)}
+.split{display:flex;height:14px;border-radius:999px;overflow:hidden;background:var(--line)}
+.split i{display:block;height:100%}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;background:var(--c);vertical-align:-1px}
+ul.rules{margin:0;padding-left:18px;display:grid;gap:4px}
+nav.bottom{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);
+  display:flex;justify-content:center;gap:4px;padding:6px max(16px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+nav.bottom button{flex:1;max-width:180px;border:0;background:none;padding:8px;border-radius:12px;font-weight:600;color:var(--muted)}
+nav.bottom button[aria-selected="true"]{color:var(--ink);background:var(--accent-soft)}
+#overlay{position:fixed;inset:0;background:rgba(10,12,30,.55);display:grid;place-items:center;padding:20px;z-index:20}
+.modal{background:var(--surface);border-radius:20px;padding:22px;width:min(380px,100%);display:flex;flex-direction:column;gap:14px;text-align:center}
+.modal .row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.adbox{background:linear-gradient(135deg,var(--ad),var(--accent));color:#fff;border-radius:14px;padding:26px 14px;font-family:var(--display);font-size:20px}
+.adtag{align-self:flex-start;font-size:11px;font-weight:700;letter-spacing:.08em;background:#F5C518;color:#1a1400;padding:1px 6px;border-radius:4px}
+.modal input{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;width:100%}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+
+body{margin:0;-webkit-tap-highlight-color:transparent;user-select:none}
+.app{padding-bottom:84px}
+nav.bottom{padding-bottom:6px}
+.screen{display:flex;flex-direction:column;gap:14px}
+#auth{max-width:420px;margin:0 auto;padding-block:40px 24px}
+#auth .tabs{display:grid;grid-template-columns:1fr 1fr;background:var(--line);border-radius:12px;padding:4px}
+#auth .tabs button{border:0;background:none;padding:8px;border-radius:9px;font-weight:600;color:var(--muted)}
+#auth .tabs button.on{background:var(--surface);color:var(--ink)}
+.field{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+.field input,.modal input{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px 12px;width:100%;user-select:text}
+.err{color:var(--bad);font-size:13px;min-height:1.2em}
+.linkbtn{border:0;background:none;color:var(--accent);font-weight:600;padding:4px}
+.note{font-size:12px;color:var(--muted)}
+.spin{display:inline-block;width:16px;height:16px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:sp 1s linear infinite;vertical-align:-3px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;z-index:30;max-width:90%;text-align:center}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<section id="auth" class="screen" hidden>
+  <div class="brand" style="font-size:34px;text-align:center">அம்பு <span>Escape</span></div>
+  <p class="muted" style="margin:0;text-align:center">Arrow puzzle விளையாடுங்க, points சேருங்க, rewards வாங்குங்க.</p>
+  <div class="card">
+    <div class="tabs"><button id="tLogin" class="on">Login</button><button id="tSign">புது account</button></div>
+    <label class="field" id="nameRow" hidden>உங்க பெயர்<input id="aName" autocomplete="name" maxlength="40"></label>
+    <label class="field">Email<input id="aEmail" type="email" autocomplete="email"></label>
+    <label class="field">Password<input id="aPass" type="password" autocomplete="current-password" minlength="6"></label>
+    <label id="ageRow" hidden style="display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--muted)"><input id="aAge" type="checkbox" style="width:auto;margin-top:4px"><span>எனக்கு 18 வயது அல்லது அதற்கு மேல். <a id="privLink" href="#" style="color:var(--accent)">Privacy policy &amp; விதிமுறைகள்</a> ஏற்கிறேன்.</span></label>
+    <div class="err" id="aErr"></div>
+    <button class="btn primary" id="aGo" style="justify-content:center">Login</button>
+    <button class="linkbtn" id="aForgot">Password மறந்துட்டீங்களா?</button>
+  </div>
+  <p class="note" style="text-align:center">ஒரு phone-க்கு ஒரு account மட்டும். Rewards 18 வயது மேற்பட்டவர்களுக்கு மட்டும்.</p>
+</section>
+
+<!-- ============ LOADING ============ -->
+<section id="loading" class="screen" style="align-items:center;padding-top:40vh"><span class="spin"></span></section>
+
+<!-- ============ MAIN ============ -->
+<div class="app" id="main" hidden>
+  <header class="top">
+    <div class="brand">அம்பு <span>Escape</span></div>
+    <div class="chip" aria-label="Points">★ <b id="pts">0</b> pts</div>
+  </header>
+
+  <section id="tab-play" class="screen">
+    <div class="hud">
+      <div class="lvl">Level <span id="lvl">1</span></div>
+      <div class="hearts" id="hearts"></div>
+      <div class="left"><span id="left">0</span> arrows<br>மீதம்</div>
+    </div>
+    <div class="board-wrap"><svg id="board" role="img" aria-label="Arrow puzzle board"></svg></div>
+    <div class="tools">
+      <button class="btn" id="hintBtn">💡 Hint <span class="badge" id="hintCount">3</span></button>
+      <button class="btn ad" id="adPts">▶ Ad பார்த்து +<span id="adPtsN">3</span> pts</button>
+      <button class="btn" id="retry">↺ Retry</button>
+    </div>
+    <div class="banner" id="webBanner" hidden><b>BANNER AD</b><br>Browser test — app-ல real AdMob banner கீழே வரும்</div>
+    <p class="muted" style="margin:0;font-size:13px;text-align:center">Arrow-ஐ tap பண்ணுங்க. போகும் பாதையில் வேற arrow இல்லன்னா வெளியே போயிடும். மோதினா ஒரு ❤ போகும்.</p>
+  </section>
+
+  <section id="tab-wallet" class="screen" hidden>
+    <div class="card">
+      <span class="muted">உங்க points</span>
+      <div class="big" id="wPts">0</div>
+      <div class="bar"><i id="wBar" style="width:0"></i></div>
+      <span class="muted" id="wNext"></span>
+    </div>
+    <div class="card"><h3>Rewards</h3><div class="rewards" id="rewards"></div></div>
+    <div class="card"><h3>Redeem history</h3><div class="hist" id="hist"></div></div>
+  </section>
+
+  <section id="tab-me" class="screen" hidden>
+    <div class="card">
+      <h3 id="meName"></h3>
+      <span class="muted" id="meEmail"></span>
+      <div class="out" id="meStats"></div>
+    </div>
+    <div class="card">
+      <h3>Points விதிமுறைகள்</h3>
+      <ul class="rules" id="rulesList"></ul>
+      <p class="note" style="margin:0">Points-க்கு பண மதிப்பு கிடையாது; admin approve செய்த பிறகுதான் reward அனுப்பப்படும். ஏமாற்று முயற்சி (பல account, automation) கண்டுபிடிச்சா account block ஆகும், points போயிடும். Rewards திட்டத்தை எப்போ வேணும்னாலும் மாற்றவோ நிறுத்தவோ உரிமை உண்டு.</p>
+    </div>
+    <button class="btn" id="logout" style="justify-content:center">Logout</button>
+    <div class="row" style="justify-content:center;gap:16px">
+      <a class="linkbtn" id="privLink2" href="#">Privacy policy</a>
+      <button class="linkbtn" id="delAcc" style="color:var(--bad)">Account-ஐ delete செய்</button>
+    </div>
+  </section>
+</div>
+
+<nav class="bottom" role="tablist" id="nav" hidden>
+  <button role="tab" data-tab="play" aria-selected="true">🎮 Play</button>
+  <button role="tab" data-tab="wallet" aria-selected="false">👛 Wallet</button>
+  <button role="tab" data-tab="me" aria-selected="false">👤 Profile</button>
+</nav>
+
+<div id="overlay" hidden><div class="modal" id="modal"></div></div>
+
+<script>
+/* =====================================================================
+   CONFIG — paste your values here (see README step 2 and 3)
+   ===================================================================== */
+const CONFIG = {
+  firebase: {
+    apiKey: "PASTE_API_KEY",
+    authDomain: "PASTE_PROJECT_ID.firebaseapp.com",
+    projectId: "PASTE_PROJECT_ID",
+    appId: "PASTE_APP_ID"
+  },
+  apiBase: "https://YOUR-SITE.netlify.app/api"
+};
+/* ===================================================================== */
+
+const IN_APP = !!(window.AndroidApp && AndroidApp.isApp && AndroidApp.isApp());
+const DIRS={U:[0,-1],D:[0,1],L:[-1,0],R:[1,0]};
+const $=id=>document.getElementById(id);
+firebase.initializeApp(CONFIG.firebase);
+const auth=firebase.auth(), fs=firebase.firestore();
+
+let UID=null, ME=null, SET={pointsPerLevel:4,heartBonus:1,pointsPerAd:3,ratePer1000:5,dailyLevelCap:60,dailyAdCap:15,interstitialEvery:2,rewards:[]};
+let unsubUser=null, unsubSet=null, pendingName='';
+
+/* ---------- small helpers ---------- */
+function local(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}}
+function toast(msg,ms=2600){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.append(t);setTimeout(()=>t.remove(),ms)}
+function modal(html){$('modal').innerHTML=html;$('overlay').hidden=false}
+function closeModal(){$('overlay').hidden=true}
+const fmt=n=>(n||0).toLocaleString('en-IN');
+function deviceId(){
+  if(IN_APP){try{return AndroidApp.deviceId()}catch(e){}}
+  let d=local('ambu-dev');if(!d){d='web'+Math.random().toString(36).slice(2,14);local('ambu-dev',d)}return d;
+}
+async function api(name,body){
+  const token=await auth.currentUser.getIdToken();
+  let res;
+  try{res=await fetch(CONFIG.apiBase+'/'+name,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(body||{})})}
+  catch(e){const er=new Error('Internet இணைப்பு இல்ல');er.status=0;throw er}
+  const json=await res.json().catch(()=>({}));
+  if(!res.ok){const er=new Error(json.error||'பிழை');er.status=res.status;er.data=json;throw er}
+  return json;
+}
+
+/* ---------- login ---------- */
+let signMode=false;
+function setMode(s){signMode=s;$('tLogin').classList.toggle('on',!s);$('tSign').classList.toggle('on',s);$('nameRow').hidden=!s;$('ageRow').hidden=!s;$('aGo').textContent=s?'Account உருவாக்கு':'Login';$('aErr').textContent=''}
+$('tLogin').onclick=()=>setMode(false);$('tSign').onclick=()=>setMode(true);
+const AUTH_ERR={'auth/invalid-email':'Email சரியா இல்ல','auth/missing-password':'Password type செய்யுங்க','auth/weak-password':'Password குறைஞ்சது 6 எழுத்து வேணும்',
+  'auth/email-already-in-use':'இந்த email-ல ஏற்கனவே account இருக்கு. Login செய்யுங்க.','auth/invalid-credential':'Email அல்லது password தப்பு',
+  'auth/user-not-found':'Account இல்ல','auth/wrong-password':'Password தப்பு','auth/too-many-requests':'ரொம்ப முயற்சி. கொஞ்ச நேரம் கழிச்சு.','auth/network-request-failed':'Internet இணைப்பு இல்ல'};
+$('aGo').onclick=async()=>{
+  const email=$('aEmail').value.trim(),pass=$('aPass').value;$('aErr').textContent='';
+  if(signMode&&$('aName').value.trim().length<2){$('aErr').textContent='பெயர் type செய்யுங்க';return}
+  if(signMode&&!$('aAge').checked){$('aErr').textContent='18 வயதுக்கு மேல் உள்ளவர்கள் மட்டும் account உருவாக்கலாம்';return}
+  $('aGo').disabled=true;
+  try{
+    pendingName=$('aName').value.trim();
+    if(signMode)await auth.createUserWithEmailAndPassword(email,pass);
+    else await auth.signInWithEmailAndPassword(email,pass);
+  }catch(e){$('aErr').textContent=AUTH_ERR[e.code]||e.message}
+  $('aGo').disabled=false;
+};
+$('aForgot').onclick=async()=>{
+  const email=$('aEmail').value.trim();if(!email){$('aErr').textContent='முதல்ல email type செய்யுங்க';return}
+  try{await auth.sendPasswordResetEmail(email);$('aErr').textContent='';toast('Password reset link உங்க email-க்கு அனுப்பியாச்சு')}
+  catch(e){$('aErr').textContent=AUTH_ERR[e.code]||e.message}
+};
+
+function show(which){$('auth').hidden=which!=='auth';$('loading').hidden=which!=='loading';$('main').hidden=which!=='main';$('nav').hidden=which!=='main'}
+
+auth.onAuthStateChanged(async u=>{
+  if(unsubUser){unsubUser();unsubUser=null}if(unsubSet){unsubSet();unsubSet=null}
+  if(!u){UID=null;ME=null;show('auth');return}
+  show('loading');UID=u.uid;
+  try{await api('register',{name:pendingName,deviceId:deviceId()})}
+  catch(e){await auth.signOut();show('auth');$('aErr').textContent=e.message;return}
+  unsubSet=fs.doc('settings/app').onSnapshot(s=>{if(s.exists)SET={...SET,...s.data()};renderAll()},()=>{});
+  let first=true;
+  unsubUser=fs.doc('users/'+UID).onSnapshot(s=>{
+    if(!s.exists)return;
+    const prevLevel=ME&&ME.level;ME=s.data();
+    if(first){first=false;show('main');startLevel()}
+    else if(G&&!G.busyClaim&&ME.level!==prevLevel&&ME.level!==G.level)startLevel();
+    renderAll();
+  },e=>toast('Data load ஆகல: '+e.message));
+});
+
+/* ---------- ads (real in app, simulated in browser) ---------- */
+const adWait={};
+window.onAdResult=(p,ok)=>{const f=adWait[p];delete adWait[p];if(f)f(ok)};
+function fakeAd(kind,done){
+  let left=kind==='rew'?5:3;
+  modal(`<span class="adtag">AD</span><div class="adbox">${kind==='rew'?'Rewarded ad':'Interstitial ad'}<br><small style="font-family:var(--body);font-size:13px">Browser test மட்டும் — app-ல real ad வரும்</small></div><div class="muted" id="adT">${left}s</div><div class="row"><button class="btn" id="adClose" disabled>Close</button></div>`);
+  const tm=setInterval(()=>{left--;const t=$('adT');if(t)t.textContent=left>0?left+'s':'Done';if(left<=0){clearInterval(tm);const b=$('adClose');b.disabled=false;b.onclick=()=>{closeModal();done(true)}}},1000);
+}
+function showRewarded(purpose,cb){
+  if(IN_APP){adWait[purpose]=ok=>{if(!ok)toast('Ad இப்போ கிடைக்கல அல்லது முழுசா பார்க்கல. கொஞ்ச நேரம் கழிச்சு முயற்சி செய்யுங்க.');cb(ok)};AndroidApp.showRewarded(purpose,UID)}
+  else fakeAd('rew',cb);
+}
+function showInterstitial(cb){
+  if(IN_APP){adWait.inter=()=>cb();AndroidApp.showInterstitial()}else fakeAd('inter',()=>cb());
+}
+
+function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+
+/* ---------- level generation: random snakes, keep only a solvable set ---------- */
+function headDir(cells,n){const a=cells[cells.length-2],b=cells[cells.length-1];return[(b%n)-(a%n),((b/n)|0)-((a/n)|0)]}
+function ray(a,occ,n,self){const h=a.cells[a.cells.length-1];let x=h%n,y=(h/n)|0,steps=0;const[dx,dy]=a.d;
+  for(;;){x+=dx;y+=dy;if(x<0||y<0||x>=n||y>=n)return{steps,hit:null};const o=occ[y*n+x];if(o!==-1)return{steps,hit:o};steps++}}
+function gen(level){
+  let best=null;
+  for(let t=0;t<25;t++){const g=genOnce(level,t);const fill=g.arrows.reduce((s,a)=>s+a.cells.length,0)/(g.n*g.n);
+    if(!best||fill>best.fill)best={...g,fill};if(fill>=.85)break}
+  return best;
+}
+function genOnce(level,attempt){
+  const n=Math.min(5+Math.ceil(level/2),12),r=rng(level*9973+17+attempt*131);
+  const occ=new Array(n*n).fill(-1),order=[...Array(n*n).keys()];
+  for(let i=order.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[order[i],order[j]]=[order[j],order[i]]}
+  let arrows=[];
+  for(const c of order){
+    if(occ[c]!==-1)continue;
+    const id=arrows.length,path=[c];occ[c]=id;
+    const target=2+Math.floor(r()*Math.min(6,n-1));let last=null;
+    while(path.length<target){
+      const cur=path[path.length-1],x=cur%n,y=(cur/n)|0,opts=[];
+      for(const k in DIRS){const[dx,dy]=DIRS[k],nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=n||ny>=n)continue;const nc=ny*n+nx;if(occ[nc]!==-1)continue;opts.push([nc,k]);if(k===last){opts.push([nc,k]);opts.push([nc,k])}}
+      if(!opts.length)break;const[nc,k]=opts[Math.floor(r()*opts.length)];last=k;path.push(nc);occ[nc]=id;
+    }
+    if(path.length<2){occ[c]=-1;continue}
+    arrows.push({cells:path});
+  }
+  arrows.forEach(a=>a.d=headDir(a.cells,n));
+  // greedy solve; flip stuck arrows a few times; drop what stays stuck
+  for(let round=0;round<4;round++){
+    const o=new Array(n*n).fill(-1);arrows.forEach((a,i)=>a.cells.forEach(c=>o[c]=i));
+    const alive=new Set(arrows.map((_,i)=>i));let prog=true;
+    while(prog){prog=false;for(const i of alive){if(ray(arrows[i],o,n).hit===null){alive.delete(i);arrows[i].cells.forEach(c=>o[c]=-1);prog=true}}}
+    if(!alive.size)break;
+    if(round<3){for(const i of alive){if(r()<.7){arrows[i].cells.reverse();arrows[i].d=headDir(arrows[i].cells,n)}}}
+    else arrows=arrows.filter((_,i)=>!alive.has(i));
+  }
+  return{n,arrows};
+}
+
+/* ---------- drawing along a path so arrows slide like snakes ---------- */
+const U=10;
+function buildPath(a,n){const P=a.cells.map(c=>[(c%n)*U+U/2,((c/n)|0)*U+U/2]);const h=P[P.length-1];
+  for(let i=1;i<=n+a.cells.length+3;i++)P.push([h[0]+a.d[0]*U*i,h[1]+a.d[1]*U*i]);return P}
+function sample(P,t){let i=Math.min(Math.floor(t/U),P.length-2);if(i<0)i=0;const f=(t-i*U)/U;return[P[i][0]+(P[i+1][0]-P[i][0])*f,P[i][1]+(P[i+1][1]-P[i][1])*f]}
+function drawArrow(a){
+  const s=a.s,L=a.L,e=s+L,pts=[sample(a.P,s)];
+  for(let k=Math.floor(s/U)+1;k*U<e;k++)pts.push(a.P[k]);
+  const end=sample(a.P,e);pts.push(end);
+  const i=Math.min(Math.floor((e-1e-6)/U),a.P.length-2);
+  let ux=a.P[i+1][0]-a.P[i][0],uy=a.P[i+1][1]-a.P[i][1];const m=Math.hypot(ux,uy)||1;ux/=m;uy/=m;
+  const tip=[end[0]+ux*3.2,end[1]+uy*3.2],b=[end[0]-ux*1.2,end[1]-uy*1.2];
+  const str=pts.map(p=>p[0].toFixed(2)+','+p[1].toFixed(2)).join(' ');
+  a.body.setAttribute('points',str);a.hit.setAttribute('points',str);
+  a.head.setAttribute('points',`${tip[0]},${tip[1]} ${b[0]-uy*3},${b[1]+ux*3} ${b[0]+uy*3},${b[1]-ux*3}`);
+}
+
+
+/* ---------- game ---------- */
+let G=null;const NS='http://www.w3.org/2000/svg';
+let hints=parseInt(local('ambu-hints')||'3',10);
+function setHints(n){hints=n;local('ambu-hints',String(n));$('hintCount').textContent=n}
+function startLevel(){
+  closeModal();
+  const level=ME.level,lv=gen(level),n=lv.n,svg=$('board');
+  svg.setAttribute('viewBox',`-3 -3 ${n*U+6} ${n*U+6}`);svg.innerHTML='';
+  G={level,n,hearts:3,arrows:[],occ:new Array(n*n).fill(-1),over:false,busyClaim:false};
+  lv.arrows.forEach((src,idx)=>{
+    const g=document.createElementNS(NS,'g');g.setAttribute('class','arrow');
+    const body=document.createElementNS(NS,'polyline');body.setAttribute('class','body');
+    const head=document.createElementNS(NS,'polygon');
+    const hit=document.createElementNS(NS,'polyline');hit.setAttribute('class','hit');
+    g.append(body,head,hit);svg.append(g);
+    const a={idx,cells:src.cells,d:src.d,g,body,head,hit,alive:true,busy:false,s:0,L:(src.cells.length-1)*U};
+    a.P=buildPath(a,n);src.cells.forEach(c=>G.occ[c]=idx);
+    hit.addEventListener('click',()=>tap(a));drawArrow(a);G.arrows.push(a);
+  });
+  renderHud();
+}
+function animate(a,from,to,ms,ease,done){const t0=performance.now();
+  function f(now){const k=Math.min(1,(now-t0)/ms);a.s=from+(to-from)*ease(k);drawArrow(a);if(k<1)requestAnimationFrame(f);else done&&done()}requestAnimationFrame(f)}
+function tap(a){
+  if(!a.alive||a.busy||G.over)return;
+  const r=ray(a,G.occ,G.n);a.busy=true;a.g.classList.remove('hint');
+  if(r.hit===null){
+    a.alive=false;a.cells.forEach(c=>G.occ[c]=-1);renderHud();
+    const dist=a.L+(r.steps+2)*U+6;
+    animate(a,0,dist,Math.max(280,dist*4.2),k=>k*k,()=>{a.g.remove();a.busy=false;checkWin()});
+  }else{
+    const bump=r.steps*U+2.5;a.g.classList.add('bad');
+    animate(a,0,bump,120+bump*6,k=>1-(1-k)*(1-k),()=>animate(a,bump,0,160+bump*5,k=>k,()=>{a.busy=false;setTimeout(()=>a.g.classList.remove('bad'),250)}));
+    G.hearts--;renderHud();if(navigator.vibrate)try{navigator.vibrate(60)}catch(e){}
+    if(G.hearts<=0){G.over=true;setTimeout(loseModal,500)}
+  }
+}
+function checkWin(){if(G.over)return;if(G.arrows.every(a=>!a.alive&&!a.busy)){G.over=true;claimWin()}}
+async function claimWin(){
+  G.busyClaim=true;
+  modal(`<h2>Level ${G.level} முடிஞ்சது! 🎉</h2><span class="muted"><span class="spin"></span> Points சேர்க்கிறோம்…</span>`);
+  try{
+    const r=await api('claim-level',{level:G.level,hearts:G.hearts});
+    ME.level=r.level;G.busyClaim=false;
+    modal(`<h2>Level ${G.level} முடிஞ்சது! 🎉</h2>
+      <div class="big" style="color:var(--accent)">+${r.earned}</div>
+      <span class="muted">${r.capped?'இன்னைக்கு points limit முடிஞ்சது. நாளைக்கு மறுபடி points வரும்.':`points (${SET.pointsPerLevel} + ${G.hearts} ❤ bonus)`}</span>
+      <div class="row"><button class="btn primary" id="next">Next level</button></div>`);
+    $('next').onclick=()=>{closeModal();const every=SET.interstitialEvery||2;if(G.level%every===0)showInterstitial(startLevel);else startLevel()};
+  }catch(e){
+    G.busyClaim=false;
+    if(e.status===409&&e.data&&e.data.level){ME.level=e.data.level;toast('Level sync ஆச்சு');startLevel();return}
+    modal(`<h2>Points சேர்க்க முடியல</h2><span class="muted">${e.message}</span><div class="row"><button class="btn primary" id="again">மறுபடி முயற்சி</button></div>`);
+    $('again').onclick=()=>{G.over=true;claimWin()};
+  }
+}
+function loseModal(){
+  modal(`<h2>❤ எல்லாம் போச்சு</h2><span class="muted">ஒரு ad பார்த்தா 1 ❤ கிடைக்கும், இதே இடத்திலிருந்து தொடரலாம்.</span>
+  <div class="row"><button class="btn ad" id="revive">▶ Ad பார்த்து continue</button><button class="btn" id="again">Retry</button></div>`);
+  $('revive').onclick=()=>{closeModal();showRewarded('revive',ok=>{if(ok){G.hearts=1;G.over=false;renderHud()}else loseModal()})};
+  $('again').onclick=()=>startLevel();
+}
+function renderHud(){
+  if(!G)return;
+  $('lvl').textContent=G.level;
+  $('hearts').innerHTML=[0,1,2].map(i=>`<span class="heart ${i<G.hearts?'':'off'}">❤</span>`).join('');
+  $('left').textContent=G.arrows.filter(a=>a.alive).length;
+  $('hintCount').textContent=hints;
+}
+
+/* ---------- controls ---------- */
+$('hintBtn').onclick=()=>{
+  if(!G||G.over)return;
+  if(hints<=0){showRewarded('hint',ok=>{if(ok){setHints(hints+2);toast('+2 hints')}});return}
+  const a=G.arrows.find(a=>a.alive&&!a.busy&&ray(a,G.occ,G.n).hit===null);if(!a)return;
+  setHints(hints-1);a.g.classList.add('hint');setTimeout(()=>a.g.classList.remove('hint'),2500);
+};
+$('adPts').onclick=()=>{
+  if(!IN_APP){toast('Ad points app-ல மட்டும் கிடைக்கும்');return}
+  showRewarded('points',ok=>{if(ok)toast('நன்றி! Points சில நொடிகளில் சேரும்')});
+};
+$('retry').onclick=()=>{if(G&&!G.busyClaim)startLevel()};
+function openTab(t){
+  document.querySelectorAll('#nav button').forEach(x=>x.setAttribute('aria-selected',x.dataset.tab===t));
+  ['play','wallet','me'].forEach(k=>$('tab-'+k).hidden=k!==t);
+  if(t==='wallet')loadHistory();
+}
+document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>openTab(b.dataset.tab));
+$('logout').onclick=()=>{closeModal();auth.signOut()};
+const SITE=CONFIG.apiBase.replace(/\/api\/?$/,'');
+$('privLink').href=$('privLink2').href=SITE+'/privacy.html';
+$('delAcc').onclick=()=>{
+  modal(`<h2>Account delete</h2><span class="muted">உங்க points (${fmt(ME&&ME.points)}), level, pending redeem requests எல்லாம் நிரந்தரமா போயிடும். திரும்ப எடுக்க முடியாது.</span>
+  <input id="delIn" placeholder="உறுதி செய்ய DELETE என்று type செய்யுங்க" aria-label="Type DELETE"><div class="err" id="delErr"></div>
+  <div class="row"><button class="btn" id="delNo">Cancel</button><button class="btn" id="delYes" style="color:var(--bad);border-color:var(--bad)">Delete</button></div>`);
+  $('delNo').onclick=closeModal;
+  $('delYes').onclick=async()=>{
+    if($('delIn').value.trim().toUpperCase()!=='DELETE'){$('delErr').textContent='DELETE என்று type செய்யுங்க';return}
+    $('delYes').disabled=true;
+    try{await api('delete-account',{});closeModal();toast('Account delete ஆச்சு');await auth.signOut()}
+    catch(e){$('delErr').textContent=e.message;$('delYes').disabled=false}
+  };
+};
+window.onBackButton=()=>{
+  if(!$('overlay').hidden&&!$('adClose')){closeModal();return}
+  if(!$('main').hidden&&$('tab-play').hidden){openTab('play');return}
+  if(IN_APP)AndroidApp.exitApp();
+};
+
+/* ---------- wallet ---------- */
+function renderAll(){
+  if(!ME)return;
+  $('pts').textContent=fmt(ME.points);
+  $('adPtsN').textContent=SET.pointsPerAd;
+  $('webBanner').hidden=IN_APP;
+  const rewards=(SET.rewards||[]).slice().sort((a,b)=>a.cost-b.cost);
+  const first=rewards[0]?rewards[0].cost:1000;
+  $('wPts').textContent=fmt(ME.points);
+  $('wBar').style.width=Math.min(100,(ME.points||0)/first*100)+'%';
+  $('wNext').textContent=ME.points>=first?`Redeem பண்ணலாம் · மதிப்பு சுமார் ₹${((ME.points||0)/1000*SET.ratePer1000).toFixed(2)}`:`முதல் reward-க்கு இன்னும் ${fmt(first-(ME.points||0))} pts`;
+  $('rewards').innerHTML=rewards.length?rewards.map(r=>`<div class="reward"><span class="t">${esc(r.title)}</span><button class="btn ${ME.points>=r.cost?'primary':''}" data-r="${esc(r.id)}" ${ME.points>=r.cost&&!ME.blocked?'':'disabled'}>Redeem</button><span class="c">${fmt(r.cost)} pts</span></div>`).join(''):'<span class="muted">Rewards விரைவில்.</span>';
+  $('rewards').querySelectorAll('button').forEach(b=>b.onclick=()=>redeem(rewards.find(r=>r.id===b.dataset.r)));
+  $('meName').textContent=ME.name||'';$('meEmail').textContent=ME.email||'';
+  $('meStats').innerHTML=`<span>Level</span><span class="v">${ME.level}</span><span>இதுவரை சம்பாதித்த pts</span><span class="v">${fmt(ME.totalEarned)}</span><span>இப்போ உள்ள pts</span><span class="v">${fmt(ME.points)}</span>`;
+  $('rulesList').innerHTML=`<li>Level முடிச்சா +${SET.pointsPerLevel} pts, மீதம் உள்ள ஒவ்வொரு ❤-க்கும் +${SET.heartBonus}</li>
+    <li>Rewarded ad முழுசா பார்த்தா +${SET.pointsPerAd} pts (நாளைக்கு ${SET.dailyAdCap} ads வரை)</li>
+    <li>ஒரு நாளைக்கு ${SET.dailyLevelCap} levels வரை points</li><li>1000 pts = ₹${SET.ratePer1000}</li>`;
+  if(ME.blocked)toast('உங்க account block செய்யப்பட்டிருக்கு',4000);
+  renderHud();
+}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+async function loadHistory(){
+  $('hist').innerHTML='<span class="muted"><span class="spin"></span></span>';
+  try{
+    const q=await fs.collection('redeems').where('uid','==',UID).limit(20).get();
+    const rows=q.docs.map(d=>d.data()).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+    const label={pending:'Pending',paid:'Paid ✓',rejected:'Rejected'};
+    $('hist').innerHTML=rows.length?rows.map(h=>`<div><span>${esc(h.title)} · ${h.createdAt?new Date(h.createdAt.seconds*1000).toLocaleDateString('en-IN'):''}${h.note?'<br><span class="muted">'+esc(h.note)+'</span>':''}</span><span class="pill">${label[h.status]||h.status}</span></div>`).join(''):'<span class="muted">இன்னும் எதுவும் redeem பண்ணல.</span>';
+  }catch(e){$('hist').innerHTML='<span class="muted">History load ஆகல</span>'}
+}
+function redeem(r){
+  modal(`<h2>${esc(r.title)}</h2><span class="muted">${fmt(r.cost)} pts கழியும். Admin சரிபார்த்து அனுப்புவாங்க (1–3 நாள்).</span>
+  <input id="rf" placeholder="${esc(r.field||'விவரம்')}" aria-label="${esc(r.field||'விவரம்')}"><div class="err" id="rErr"></div>
+  <div class="row"><button class="btn" id="rc">Cancel</button><button class="btn primary" id="ro">Confirm</button></div>`);
+  $('rc').onclick=closeModal;
+  $('ro').onclick=async()=>{
+    const v=$('rf').value.trim();if(v.length<4){$('rErr').textContent=(r.field||'விவரம்')+' சரியா type செய்யுங்க';return}
+    $('ro').disabled=true;
+    try{await api('redeem',{rewardId:r.id,target:v});closeModal();toast('Request அனுப்பியாச்சு ✓');loadHistory()}
+    catch(e){$('rErr').textContent=e.message;$('ro').disabled=false}
+  };
+}
+</script>
+</body>
+</html>
