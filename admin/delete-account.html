@@ -40,7 +40,7 @@ a{color:var(--accent)}
 <p class="muted">Password மறந்துவிட்டால் app-ல "Password மறந்துட்டீங்களா?" பயன்படுத்துங்க, அல்லது CONTACT_EMAIL-க்கு உங்க account email-லிருந்து எழுதுங்க.</p>
 </main>
 <script>
-const FIREBASE={apiKey:"PASTE_API_KEY",authDomain:"PASTE_PROJECT_ID.firebaseapp.com",projectId:"PASTE_PROJECT_ID",appId:"PASTE_APP_ID"};
+const FIREBASE={apiKey:"AIzaSyA1O0FRSeODg_xQKURSlk09IIZPjjYjCNg",authDomain:"ambu-escape.firebaseapp.com",projectId:"ambu-escape",appId:"1:400398439615:web:048b64dbdb80351171e20a"};
 firebase.initializeApp(FIREBASE);const auth=firebase.auth();const $=id=>document.getElementById(id);
 $('go').onclick=async()=>{$('m1').textContent='';try{await auth.signInWithEmailAndPassword($('em').value.trim(),$('pw').value)}catch(e){$('m1').textContent='Login ஆகல. Email/password சரிபாருங்க.'}};
 auth.onAuthStateChanged(u=>{$('loginBox').hidden=!!u;$('delBox').hidden=!u;if(u)$('who').textContent='Login: '+u.email});
